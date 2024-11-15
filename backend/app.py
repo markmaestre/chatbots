@@ -260,33 +260,27 @@ def call_cohere_api(user_message):
             model='xlarge',
             prompt=user_message,
             max_tokens=100,
-            temperature=0.7
+            temperature=0.7,
+            stop_sequences=["\n"]
         )
         return response.generations[0].text.strip()
     except Exception as e:
-        print(f"Error calling Cohere API: {e}")
-        return "Sorry, I encountered an issue processing your message."
+        return f"Error calling Cohere API: {str(e)}"
 
-# Save user history to PostgreSQL
-def save_user_history(email, question, response):
+# Save user history to the database
+def save_user_history(email, user_message, response):
     conn = get_db_connection()
     if conn is not None:
         with conn.cursor() as cursor:
             cursor.execute(
-                "UPDATE users SET history = history || %s WHERE email = %s",
-                (f"User: {question}\nBot: {response}", email)
+                sql.SQL("UPDATE users SET history = history || %s WHERE email = %s"),
+                [f"User: {user_message}\nBot: {response}\n", email]
             )
             conn.commit()
         conn.close()
 
-# Initialize the user table on startup and check database connection
-conn = get_db_connection()
-if conn is not None:
-    print("Successfully connected to the database!")
-    create_user_table()
-    conn.close()
-else:
-    print("Error connecting to the database.")
+# Initialize database table on startup
+create_user_table()
 
 if __name__ == '__main__':
     app.run(debug=True)
